@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <meta name="description" content="Humanity Charter — an open civic draft for the AGI age." />
+  <title>Humanity Charter · 人类共同宪章</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Humanity Charter home"><span class="mark" aria-hidden="true">H</span><span>Humanity Charter</span></a>
+    <div class="top-actions"><a class="quiet-link" id="github-link" href="#" target="_blank" rel="noreferrer">GitHub</a><button class="lang-switch" id="lang-switch" type="button" aria-label="Switch language">EN</button></div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <p class="kicker" data-i18n="kicker">OPEN DRAFT · v0.2</p>
+      <h1 data-i18n="heroTitle">当机器比人更会思考，<br>人仍应是文明的目的。</h1>
+      <p class="hero-copy" data-i18n="heroCopy">我们不声称代表全人类。我们只建立一个人人都能读、质疑、提出议题和申请修改的公开起点。</p>
+      <div class="hero-actions"><a class="button primary" href="#discuss" data-i18n="startDiscussion">发起议题</a><a class="button" href="#change" data-i18n="proposeChange">申请修改</a></div>
+      <p class="micro" data-i18n="heroNote">无需 GitHub 账号。你的提交会由后端同步到公开 GitHub 记录。</p>
+    </section>
+
+    <section class="split-section" id="principles">
+      <div class="section-index">01</div>
+      <div class="section-body">
+        <p class="eyebrow" data-i18n="principlesEyebrow">候选原则</p>
+        <h2 data-i18n="principlesTitle">第一版只保留最少的共同问题。</h2>
+        <div class="principle-list">
+          <article class="principle"><span>01</span><div><h3 data-i18n="p1Title">生存不以经济价值为条件。</h3><p data-i18n="p1Body">一个人不应仅因无法与机器竞争而失去基本生存与尊严。</p></div></article>
+          <article class="principle"><span>02</span><div><h3 data-i18n="p2Title">自动化成果应广泛惠及社会。</h3><p data-i18n="p2Body">具体分配方式可以争论，但极端集中不应成为默认结局。</p></div></article>
+          <article class="principle"><span>03</span><div><h3 data-i18n="p3Title">人保留对文明目标的参与权。</h3><p data-i18n="p3Body">AI 可以帮助寻找手段，但重大价值目标不能只由少数机构或自动系统决定。</p></div></article>
+          <article class="principle"><span>04</span><div><h3 data-i18n="p4Title">每个人拥有认知与选择自由。</h3><p data-i18n="p4Body">包括知情、拒绝隐秘操控，以及选择不同技术生活方式的权利。</p></div></article>
+          <article class="principle"><span>05</span><div><h3 data-i18n="p5Title">宪章本身必须可以被公众修改。</h3><p data-i18n="p5Body">发起人不是最终解释者。每次重要变化都应留下可公开追溯的记录。</p></div></article>
+        </div>
+        <div class="inline-links"><a href="./CHARTER.zh-CN.md" target="_blank" data-i18n="readZhDraft">中文完整草案 ↗</a><a href="./CHARTER.en.md" target="_blank" data-i18n="readEnDraft">English full draft ↗</a></div>
+      </div>
+    </section>
+
+    <section class="form-section" id="discuss">
+      <div class="section-index">02</div>
+      <div class="section-body narrow">
+        <p class="eyebrow" data-i18n="discussionEyebrow">发起议题</p>
+        <h2 data-i18n="discussionTitle">把一个值得共同讨论的问题放到桌面上。</h2>
+        <p class="section-copy" data-i18n="discussionCopy">提交成功后，后端会自动在 GitHub Discussions 创建公开讨论。GitHub 上的发布者是项目同步账号，正文会注明这是来自公开网站的投稿。</p>
+        <form id="discussion-form" class="public-form" novalidate>
+          <label><span data-i18n="fieldTitle">标题</span><input name="title" maxlength="120" required data-i18n-placeholder="discussionTitlePlaceholder" placeholder="例如：失去经济价值的人是否仍有无条件生存权？" /></label>
+          <label><span data-i18n="fieldContext">背景</span><textarea name="context" rows="5" maxlength="4000" required data-i18n-placeholder="discussionContextPlaceholder" placeholder="这个问题为什么值得讨论？你观察到了什么？"></textarea></label>
+          <label><span data-i18n="fieldQuestion">希望大家回答的问题</span><textarea name="question" rows="4" maxlength="2500" required data-i18n-placeholder="discussionQuestionPlaceholder" placeholder="尽量提出一个具体、允许不同答案的问题。"></textarea></label>
+          <label><span data-i18n="fieldName">署名（可选）</span><input name="displayName" maxlength="80" data-i18n-placeholder="namePlaceholder" placeholder="昵称、名字或留空匿名" /></label>
+          <label class="honeypot" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
+          <label class="consent"><input type="checkbox" name="consent" required /><span data-i18n="publicConsent">我知道上述内容将被同步到公开 GitHub，任何人都可以阅读。</span></label>
+          <button class="button primary submit-button" type="submit" data-i18n="publishDiscussion">公开发起议题</button>
+          <div class="form-status" id="discussion-status" role="status" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="form-section alt" id="change">
+      <div class="section-index">03</div>
+      <div class="section-body narrow">
+        <p class="eyebrow" data-i18n="changeEyebrow">申请修改</p>
+        <h2 data-i18n="changeTitle">不用学 Git，也可以提出一个真实的 Pull Request。</h2>
+        <p class="section-copy" data-i18n="changeCopy">请选择要修改的中/英文宪章，粘贴一段现有原文，再给出替换文本。后端会先创建 Issue；只有原文在目标文件中恰好匹配一次时，才自动建立分支和 PR。</p>
+        <form id="change-form" class="public-form" novalidate>
+          <label><span data-i18n="fieldSummary">修改摘要</span><input name="summary" maxlength="120" required data-i18n-placeholder="summaryPlaceholder" placeholder="例如：明确“基本生存条件”不等于无限资源权利" /></label>
+          <label><span data-i18n="fieldFile">目标文件</span><select name="file" required><option value="zh">CHARTER.zh-CN.md</option><option value="en">CHARTER.en.md</option></select></label>
+          <label><span data-i18n="fieldOriginal">现有原文（精确粘贴）</span><textarea name="originalText" rows="6" maxlength="8000" required data-i18n-placeholder="originalPlaceholder" placeholder="从草案中精确复制要替换的文字。"></textarea></label>
+          <label><span data-i18n="fieldReplacement">建议替换为</span><textarea name="replacementText" rows="6" maxlength="8000" required data-i18n-placeholder="replacementPlaceholder" placeholder="写出你建议的新文本。"></textarea></label>
+          <label><span data-i18n="fieldReason">为什么要改？</span><textarea name="reason" rows="5" maxlength="4000" required data-i18n-placeholder="reasonPlaceholder" placeholder="说明理由、潜在收益，以及可能的副作用。"></textarea></label>
+          <label><span data-i18n="fieldName">署名（可选）</span><input name="displayName" maxlength="80" data-i18n-placeholder="namePlaceholder" placeholder="昵称、名字或留空匿名" /></label>
+          <label class="honeypot" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
+          <label class="consent"><input type="checkbox" name="consent" required /><span data-i18n="changeConsent">我知道提案、Issue、PR 与文本差异都将公开。</span></label>
+          <button class="button primary submit-button" type="submit" data-i18n="publishChange">创建公开修改提案</button>
+          <div class="form-status" id="change-status" role="status" aria-live="polite"></div>
+        </form>
+      </div>
+    </section>
+
+    <section class="split-section" id="activity">
+      <div class="section-index">04</div>
+      <div class="section-body">
+        <p class="eyebrow" data-i18n="activityEyebrow">公开记录</p>
+        <div class="activity-heading"><h2 data-i18n="activityTitle">网站只是入口，GitHub 才是公开账本。</h2><button class="quiet-button" id="refresh-activity" type="button" data-i18n="refresh">刷新</button></div>
+        <p class="section-copy" data-i18n="activityCopy">这里仅显示最近同步结果。讨论正文、Issue、PR、commit 和最终合并历史都在 GitHub 上公开保留。</p>
+        <div id="activity-list" class="activity-list"><p class="muted" data-i18n="loading">正在读取公开记录…</p></div>
+      </div>
+    </section>
+
+    <section class="closing"><p data-i18n="closing">我们没有资格替全人类制定宪章。<br>但我们可以建立一个让更多人开始共同制定它的地方。</p></section>
+  </main>
+
+  <footer><span>Humanity Charter · Open Draft v0.2</span><span data-i18n="footerNote">静态前端 · Cloudflare Worker + D1 · GitHub 公开记录</span></footer>
+  <script src="./config.js"></script><script src="./app.js"></script>
+</body>
+</html>

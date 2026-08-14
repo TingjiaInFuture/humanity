@@ -1,0 +1,20 @@
+name = "humanity-charter-api"
+main = "src/index.js"
+compatibility_date = "2026-08-14"
+
+[vars]
+GITHUB_OWNER = "YOUR_GITHUB_USER_OR_ORG"
+GITHUB_REPO = "YOUR_REPOSITORY"
+GITHUB_BASE_BRANCH = "main"
+DISCUSSION_CATEGORY = "Ideas"
+ALLOWED_ORIGIN = "https://YOUR_GITHUB_USER.github.io"
+CHARTER_ZH_PATH = "docs/CHARTER.zh-CN.md"
+CHARTER_EN_PATH = "docs/CHARTER.en.md"
+RATE_LIMIT_WINDOW_SECONDS = "3600"
+RATE_LIMIT_MAX = "6"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "humanity-charter"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
