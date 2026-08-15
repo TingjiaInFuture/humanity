@@ -10,8 +10,8 @@
       fieldMode:"修改类型", modeModify:"修改现有内容", modeInsert:"新增内容", modeDelete:"删除内容", fieldFile:"语言版本", zhCharterOption:"中文宪章", enCharterOption:"English 宪章",
       fieldSection:"选择章节", selectSection:"请选择章节…", insertEnd:"文档末尾", docPreamble:"文档开头", fieldParagraph:"选择段落", selectParagraph:"请选择段落…", wholeSection:"整节全部内容",
       insertAfterNote:"新增内容会加在「{section}」这一节后面：", insertEndNote:"新增内容会加到文档末尾。",
-      pickerLoadFailed:"没能自动加载宪章内容，可以直接把要改的文字粘贴到下面。", duplicateWarn:"这段文字在文中出现了不止一次，提交前请核对一下原文框里的内容。",
-      fieldOriginal:"原来的文字（自动填好，可调整）", originalPlaceholder:"选好位置后会自动填入，也可以手动粘贴。", fieldReplacement:"改成", replacementPlaceholder:"写出你想要的文字。", fieldNewContent:"要新增的内容", newContentPlaceholder:"写下要新增的内容（会加在所选章节后面）。",
+      pickerLoadFailed:"没能自动加载宪章内容，可以直接把要改的文字粘贴到下面。", duplicateWarn:"这段文字在文中出现了不止一次，系统没法确定你要改哪一处。建议在上方改选「整节全部内容」。",
+      fieldOriginal:"原来的文字（已自动定位）", fieldOriginalManual:"原来的文字（粘贴要修改的原文）", originalPlaceholder:"选好位置后会自动填入。", fieldReplacement:"改成", replacementPlaceholder:"写出你想要的文字。", fieldNewContent:"要新增的内容", newContentPlaceholder:"写下要新增的内容（会加在所选章节后面）。",
       fieldSummary:"修改摘要", summaryPlaceholder:"例如：明确“基本生存条件”不等于无限资源权利", fieldReason:"为什么要改？", reasonPlaceholder:"为什么想改？改了有什么好处，又有什么风险？", changeConsent:"我知道自己写的内容会公开展示。", publishChange:"提交修改提案",
       activityEyebrow:"公开记录", activityTitle:"谁提了什么、改了什么，都查得到。", activityCopy:"这里是最近的动态。更早的讨论和每一次修改都完整保留，随时可查。", refresh:"刷新", loading:"正在读取…", loadingShort:"正在加载…", noActivity:"还没有人提交。你可以是第一个。", closing:"也许我们不能代表全人类制定宪章，<br>但我们可以从这里开始。", footerNote:"开放草稿 · 所有内容公开可查",
       submitting:"正在提交…", discussionSuccess:"讨论已创建：", changeSuccess:"提案已提交：", issueOnly:"提案收到了，但需要人工处理：", issueOnlyReason:"你选的文字在最新版本里找不到（可能已经被别人改过）。可以点开提案补充说明，或者回来重新选一次。", invalidForm:"还有必填项没填完，记得勾选同意公开。", apiNotConfigured:"前端尚未配置 Worker 地址。请编辑 docs/config.js。", requestFailed:"提交失败了，请稍后再试。", activityFailed:"暂时读不到公开记录。", discussionKind:"讨论", changeKind:"修改", discussionLink:"查看讨论", issueLink:"查看提案", prLink:"查看修改详情"
@@ -24,8 +24,8 @@
       fieldMode:"Change type", modeModify:"Edit existing text", modeInsert:"Add new content", modeDelete:"Remove text", fieldFile:"Language version", zhCharterOption:"Chinese charter", enCharterOption:"English charter",
       fieldSection:"Choose a section", selectSection:"Choose a section…", insertEnd:"End of the document", docPreamble:"Beginning of the document", fieldParagraph:"Choose a passage", selectParagraph:"Choose a passage…", wholeSection:"The whole section",
       insertAfterNote:"New content will be added after “{section}”:", insertEndNote:"New content will be added at the end of the document.",
-      pickerLoadFailed:"The charter couldn't be loaded automatically — you can paste the text you want to change below.", duplicateWarn:"This passage appears more than once in the document. Double-check the current-text box before submitting.",
-      fieldOriginal:"Current text (filled in, adjustable)", originalPlaceholder:"Fills in automatically once you pick a location, or paste it yourself.", fieldReplacement:"Change it to", replacementPlaceholder:"Write the text you want instead.", fieldNewContent:"New content", newContentPlaceholder:"Write what you'd like to add (it goes after the chosen section).",
+      pickerLoadFailed:"The charter couldn't be loaded automatically — you can paste the text you want to change below.", duplicateWarn:"This passage appears more than once in the document, so the change can't be located. Try choosing “The whole section” above instead.",
+      fieldOriginal:"Current text (located automatically)", fieldOriginalManual:"Current text (paste the text to change)", originalPlaceholder:"Fills in automatically once you pick a location.", fieldReplacement:"Change it to", replacementPlaceholder:"Write the text you want instead.", fieldNewContent:"New content", newContentPlaceholder:"Write what you'd like to add (it goes after the chosen section).",
       fieldSummary:"Change summary", summaryPlaceholder:"e.g. Clarify that basic survival doesn't mean an unlimited claim on resources", fieldReason:"Why change it?", reasonPlaceholder:"Why? What does it improve, and what could go wrong?", changeConsent:"I know what I submit will be public.", publishChange:"Submit proposal",
       activityEyebrow:"Public record", activityTitle:"Who said what, who changed what — it's all on the record.", activityCopy:"Recent activity lives here. Earlier discussions and every change are kept in full, free to check anytime.", refresh:"Refresh", loading:"Loading…", loadingShort:"Loading…", noActivity:"No submissions yet. You could be the first.", closing:"Maybe we can't write a charter for all of humanity —<br>but we can start here.", footerNote:"Open draft · everything public",
       submitting:"Submitting…", discussionSuccess:"Discussion created:", changeSuccess:"Proposal submitted:", issueOnly:"Got your proposal, but it needs a human touch:", issueOnlyReason:"The text you picked couldn't be found in the latest version (someone may have changed it). Open the proposal to explain, or come back and pick again.", invalidForm:"Some required fields are still empty — remember to tick the consent box.", apiNotConfigured:"The Worker URL is not configured yet. Edit docs/config.js.", requestFailed:"Submission failed. Please try again later.", activityFailed:"Public activity is temporarily unavailable.", discussionKind:"Discussion", changeKind:"Change", discussionLink:"View discussion", issueLink:"View proposal", prLink:"View the change"
@@ -94,6 +94,11 @@
     try{charterText=await loadCharter(fileSel.value);sections=parseSections(charterText);charterFailed=false}
     catch{sections=[];charterText="";charterFailed=true}
     secSel.disabled=false;paraSel.disabled=false;
+    // The current-text box is read-only whenever the picker works: the backend
+    // locates the passage by exact match, so hand edits would break it. Manual
+    // pasting is only the fallback when the charter could not be loaded.
+    origField.readOnly=!charterFailed;
+    origLabel.textContent=charterFailed?t("fieldOriginalManual"):t("fieldOriginal");
     renderSectionOptions();
   }
   function renderSectionOptions(){
@@ -144,14 +149,15 @@
       // The anchor is chosen with the section picker; keep a manual fallback visible
       // only when the charter itself could not be loaded.
       origRow.hidden=!charterFailed;origField.required=false;
-      origLabel.textContent=t("fieldOriginal");
     }else if(mode==="delete"){
       replRow.hidden=true;replField.required=false;replField.value="";
-      origRow.hidden=false;origLabel.textContent=t("fieldOriginal");origField.required=true;
+      origRow.hidden=false;origField.required=true;
     }else{
       replRow.hidden=false;replLabel.textContent=t("fieldReplacement");replField.placeholder=t("replacementPlaceholder");replField.required=true;
-      origRow.hidden=false;origLabel.textContent=t("fieldOriginal");origField.required=true;
+      origRow.hidden=false;origField.required=true;
     }
+    origField.readOnly=!charterFailed;
+    origLabel.textContent=charterFailed?t("fieldOriginalManual"):t("fieldOriginal");
     if(sections.length||charterFailed)renderSectionOptions();
   }
   modeSel.addEventListener("change",refreshModeUi);
