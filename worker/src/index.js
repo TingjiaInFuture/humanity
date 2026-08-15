@@ -78,22 +78,35 @@ async function createChange(request, env, cors) {
   assertConfigured(env);
   const data = await readJson(request); rejectHoneypot(data);
   const summary = requiredString(data.summary, "summary", 5, 120);
-  const originalText = requiredString(data.originalText, "originalText", 1, 8000);
-  const replacementText = requiredString(data.replacementText, "replacementText", 1, 8000);
+  // mode: "replace" edits an exact passage, "insert" adds new content after an anchor
+  // (or at the end of the file when no anchor is given), "delete" removes an exact passage.
+  const mode = ["replace", "insert", "delete"].includes(data.mode) ? data.mode : "replace";
+  let originalText, replacementText;
+  if (mode === "insert") {
+    originalText = String(data.originalText ?? "").trim(); // anchor, optional
+    if (originalText.length > 8000) throw clientError("originalText must be at most 8000 characters.", "invalid_field", 400);
+    replacementText = requiredString(data.replacementText, "replacementText", 1, 8000);
+  } else if (mode === "delete") {
+    originalText = requiredString(data.originalText, "originalText", 1, 8000);
+    replacementText = "";
+  } else {
+    originalText = requiredString(data.originalText, "originalText", 1, 8000);
+    replacementText = requiredString(data.replacementText, "replacementText", 1, 8000);
+    if (originalText === replacementText) throw clientError("The replacement text is identical to the current text.", "no_change", 400);
+  }
   const reason = requiredString(data.reason, "reason", 5, 4000);
   const displayName = optionalString(data.displayName, 80);
   const lang = normalizeLang(data.lang), fileKey = data.file === "en" ? "en" : "zh";
   const targetPath = fileKey === "en" ? env.CHARTER_EN_PATH : env.CHARTER_ZH_PATH;
   requireConsent(data.consent);
-  if (originalText === replacementText) throw clientError("The replacement text is identical to the current text.", "no_change", 400);
 
   const id = crypto.randomUUID(), now = Date.now();
-  await insertSubmission(env, { id, kind: "change", lang, title: summary, payload: { summary, targetPath, originalText, replacementText, reason, displayName, lang }, status: "pending", now });
+  await insertSubmission(env, { id, kind: "change", lang, title: summary, payload: { summary, mode, targetPath, originalText, replacementText, reason, displayName, lang }, status: "pending", now });
 
   let issue;
   try {
     issue = await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/issues`, {
-      method: "POST", body: { title: `[Charter proposal] ${summary}`, body: buildIssueBody({ id, targetPath, originalText, replacementText, reason, displayName, lang }) }
+      method: "POST", body: { title: `[Charter proposal] ${summary}`, body: buildIssueBody({ id, mode, targetPath, originalText, replacementText, reason, displayName, lang }) }
     });
     await env.DB.prepare(`UPDATE submissions SET github_issue_url=?, updated_at=? WHERE id=?`).bind(issue.html_url, Date.now(), id).run();
   } catch (error) { await markFailed(env, id, error); throw error; }
@@ -101,23 +114,38 @@ async function createChange(request, env, cors) {
   try {
     const current = await getFile(env, targetPath, env.GITHUB_BASE_BRANCH);
     const content = decodeBase64Utf8(current.content || "");
-    const matches = countExact(content, originalText);
-    if (matches !== 1) {
-      const message = matches === 0 ? "The exact source text was not found in the target file." : `The exact source text appears ${matches} times; automatic replacement would be ambiguous.`;
-      await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/issues/${issue.number}/comments`, { method: "POST", body: { body: `Automation stopped before creating a PR.\n\n**Reason:** ${message}\n\nPlease continue in this Issue or resubmit with a passage that matches exactly once.` } }).catch(err => console.error("issue_comment_failed", err));
-      await env.DB.prepare(`UPDATE submissions SET status='issue_only', error_message=?, updated_at=? WHERE id=?`).bind(message, Date.now(), id).run();
-      return json({ ok: true, id, issueUrl: issue.html_url, prUrl: null, status: "issue_only", message }, 201, cors);
+    let updatedContent;
+    if (mode === "insert" && !originalText) {
+      // No anchor: append the new content at the end of the file.
+      updatedContent = `${content.replace(/\s+$/, "")}\n\n${replacementText}\n`;
+    } else {
+      const matches = countExact(content, originalText);
+      if (matches !== 1) {
+        const what = mode === "insert" ? "insertion point" : "source text";
+        const message = matches === 0 ? `The exact ${what} was not found in the target file.` : `The exact ${what} appears ${matches} times; automatic editing would be ambiguous.`;
+        await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/issues/${issue.number}/comments`, { method: "POST", body: { body: `Automation stopped before creating a PR.\n\n**Reason:** ${message}\n\nPlease continue in this Issue or resubmit with a passage that matches exactly once.` } }).catch(err => console.error("issue_comment_failed", err));
+        await env.DB.prepare(`UPDATE submissions SET status='issue_only', error_message=?, updated_at=? WHERE id=?`).bind(message, Date.now(), id).run();
+        return json({ ok: true, id, issueUrl: issue.html_url, prUrl: null, status: "issue_only", message }, 201, cors);
+      }
+      if (mode === "insert") {
+        const idx = content.indexOf(originalText), end = idx + originalText.length;
+        const after = content.slice(end).replace(/^\n+/, "\n");
+        updatedContent = `${content.slice(0, end)}\n\n${replacementText}${after.startsWith("\n") || after === "" ? after : `\n${after}`}`;
+      } else if (mode === "delete") {
+        updatedContent = content.replace(originalText, "").replace(/\n{3,}/g, "\n\n");
+      } else {
+        updatedContent = content.replace(originalText, replacementText);
+      }
     }
 
     const branch = `proposal/${id.slice(0, 8)}-${Date.now().toString(36)}`;
     const baseRef = await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/git/ref/heads/${encPath(env.GITHUB_BASE_BRANCH)}`);
     await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/git/refs`, { method: "POST", body: { ref: `refs/heads/${branch}`, sha: baseRef.object.sha } });
-    const updatedContent = content.replace(originalText, replacementText);
     await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/contents/${encPath(targetPath)}`, {
       method: "PUT", body: { message: `charter: ${summary}`, content: encodeBase64Utf8(updatedContent), sha: current.sha, branch }
     });
     const pr = await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/pulls`, {
-      method: "POST", body: { title: `[Charter] ${summary}`, head: branch, base: env.GITHUB_BASE_BRANCH, body: buildPrBody({ id, issueNumber: issue.number, targetPath, reason, displayName, lang }) }
+      method: "POST", body: { title: `[Charter] ${summary}`, head: branch, base: env.GITHUB_BASE_BRANCH, body: buildPrBody({ id, issueNumber: issue.number, mode, targetPath, reason, displayName, lang }) }
     });
     await env.DB.prepare(`UPDATE submissions SET status='synced', github_pr_url=?, github_branch=?, updated_at=? WHERE id=?`).bind(pr.html_url, branch, Date.now(), id).run();
     return json({ ok: true, id, issueUrl: issue.html_url, prUrl: pr.html_url, status: "synced" }, 201, cors);
@@ -137,16 +165,29 @@ function buildDiscussionBody({ id, context, question, displayName, lang }) { ret
   "This record is public by design. No email address or raw IP address is included."
 ].join("\n"); }
 
-function buildIssueBody({ id, targetPath, originalText, replacementText, reason, displayName, lang }) { return [
-  "> Submitted through the Humanity Charter public website.",
-  "> The GitHub author is the project synchronization account, not necessarily the human submitter.", "",
-  `**Submission ID:** \`${id}\``, `**Language:** ${lang}`, `**Display name:** ${displayName || "Anonymous / 匿名"}`, `**Target file:** \`${targetPath}\``, "",
-  "## Current text / 现有原文", "", fenced(originalText), "", "## Proposed replacement / 建议替换", "", fenced(replacementText), "", "## Rationale / 理由", "", reason, "", "---",
-  "The backend creates a Pull Request only when the current text matches exactly once in the target file. It never merges automatically."
-].join("\n"); }
+function buildIssueBody({ id, mode, targetPath, originalText, replacementText, reason, displayName, lang }) {
+  const modeLabel = { replace: "Replace / 替换", insert: "Insert / 新增", delete: "Delete / 删除" }[mode];
+  const sections = [];
+  if (mode === "insert") {
+    sections.push("## Insert after / 插入位置", "", originalText ? fenced(originalText) : "*End of the document / 文档末尾*", "");
+    sections.push("## New content / 新增内容", "", fenced(replacementText), "");
+  } else if (mode === "delete") {
+    sections.push("## Text to remove / 要删除的原文", "", fenced(originalText), "");
+  } else {
+    sections.push("## Current text / 现有原文", "", fenced(originalText), "");
+    sections.push("## Proposed replacement / 建议替换", "", fenced(replacementText), "");
+  }
+  return [
+    "> Submitted through the Humanity Charter public website.",
+    "> The GitHub author is the project synchronization account, not necessarily the human submitter.", "",
+    `**Submission ID:** \`${id}\``, `**Change type:** ${modeLabel}`, `**Language:** ${lang}`, `**Display name:** ${displayName || "Anonymous / 匿名"}`, `**Target file:** \`${targetPath}\``, "",
+    ...sections,
+    "## Rationale / 理由", "", reason, "", "---",
+    "The backend creates a Pull Request only when the target passage matches exactly once in the target file. It never merges automatically."
+  ].join("\n"); }
 
-function buildPrBody({ id, issueNumber, targetPath, reason, displayName, lang }) { return [
-  `Closes #${issueNumber}`, "", `**Public submission:** \`${id}\``, `**Language:** ${lang}`, `**Display name:** ${displayName || "Anonymous / 匿名"}`, `**Target file:** \`${targetPath}\``, "",
+function buildPrBody({ id, issueNumber, mode, targetPath, reason, displayName, lang }) { return [
+  `Closes #${issueNumber}`, "", `**Public submission:** \`${id}\``, `**Change type:** ${mode}`, `**Language:** ${lang}`, `**Display name:** ${displayName || "Anonymous / 匿名"}`, `**Target file:** \`${targetPath}\``, "",
   "## Rationale / 理由", "", reason, "", "---",
   "This branch and PR were generated automatically from an exact-text public proposal. Review is still required; the automation never merges the PR."
 ].join("\n"); }
