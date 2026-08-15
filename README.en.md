@@ -21,6 +21,7 @@ Browser
   │
   ├── GitHub Pages: docs/
   │      ├── 中文 / English
+  │      ├── What's happening now
   │      ├── Start a discussion
   │      ├── Propose a change
   │      └── Recent public activity

@@ -21,6 +21,7 @@ Browser
   │
   ├── GitHub Pages: docs/
   │      ├── 中文 / English
+  │      ├── 正在发生什么（Why now）
   │      ├── 发起议题
   │      ├── 申请修改
   │      └── 最近公开记录
