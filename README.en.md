@@ -75,5 +75,5 @@ If a larger community forms later, consider migrating the maintainer token to a 
 
 ## Drafts
 
-- [`docs/CHARTER.zh-CN.md`](./docs/CHARTER.zh-CN.md) (Chinese)
-- [`docs/CHARTER.en.md`](./docs/CHARTER.en.md) (English)
+- [`docs/CHARTER.zh-CN.txt`](./docs/CHARTER.zh-CN.txt) (Chinese)
+- [`docs/CHARTER.en.txt`](./docs/CHARTER.en.txt) (English)

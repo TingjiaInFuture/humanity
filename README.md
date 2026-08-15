@@ -75,5 +75,5 @@ Worker 永远先创建 Issue。只有定位文本在当前目标文件中 **恰�
 
 ## Drafts
 
-- [`docs/CHARTER.zh-CN.md`](./docs/CHARTER.zh-CN.md)
-- [`docs/CHARTER.en.md`](./docs/CHARTER.en.md)
+- [`docs/CHARTER.zh-CN.txt`](./docs/CHARTER.zh-CN.txt)
+- [`docs/CHARTER.en.txt`](./docs/CHARTER.en.txt)

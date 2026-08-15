@@ -54,26 +54,30 @@
 
   async function loadCharter(fileKey){
     if(charterCache[fileKey])return charterCache[fileKey];
-    const url=fileKey==="en"?(cfg.charterEnUrl||"./CHARTER.en.md"):(cfg.charterZhUrl||"./CHARTER.zh-CN.md");
+    const url=fileKey==="en"?(cfg.charterEnUrl||"./CHARTER.en.txt"):(cfg.charterZhUrl||"./CHARTER.zh-CN.txt");
     const res=await fetch(url,{headers:{accept:"text/plain"}});
     if(!res.ok)throw new Error("charter_fetch_failed");
     const text=await res.text();
     charterCache[fileKey]=text;return text;
   }
-  // Split the charter into heading-delimited sections; each keeps its exact text
-  // (so the backend can match it once) plus its paragraphs for finer selection.
+  // Split the charter into sections marked with 【...】 heading lines; each keeps
+  // its exact text (so the backend can match it once) plus its paragraphs for
+  // finer selection. The charter is plain text — no markdown syntax.
   function parseSections(md){
     const lines=md.replace(/\r\n/g,"\n").split("\n");
     const blocks=[];let cur={title:"",heading:"",body:[],isPreamble:true};
     for(const line of lines){
-      const m=line.match(/^#{1,6}\s+(.+)$/);
+      const m=line.match(/^【(.+?)】\s*$/);
       if(m){blocks.push(cur);cur={title:m[1].trim(),heading:line,body:[],isPreamble:false}}
       else cur.body.push(line);
     }
     blocks.push(cur);
     const list=blocks.filter(s=>s.isPreamble?s.body.join("").trim():true);
     for(const s of list){
-      s.text=[s.heading,...s.body].join("\n").replace(/\n+$/,"");
+      // Keep the exact bytes between heading and body (blank line included):
+      // the text must remain a verbatim substring for exact-once matching.
+      s.text=s.body.join("\n").replace(/\n+$/,"");
+      if(s.heading)s.text=`${s.heading}\n${s.text}`;else s.text=s.text.replace(/^\n+/,"");
       s.paragraphs=[];
       let buf=[];
       for(const line of s.body){
