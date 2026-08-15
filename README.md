@@ -67,7 +67,11 @@ Worker 永远先创建 Issue。只有定位文本在当前目标文件中 **恰�
 
 ## Deploy
 
-见 [`DEPLOY.md`](./DEPLOY.md)。
+- 前端：GitHub Pages，`main` 分支 `/docs` 目录，push 即发布。
+- Worker：push 到 `main` 且改动 `worker/**` 时由 GitHub Actions 自动部署；也可在 `worker/` 下手动 `npm run deploy`。
+- 所需 Secret：`GITHUB_TOKEN`（fine-grained，仅本仓库，Discussions / Issues / Contents / Pull requests 写权限）、`IP_HASH_SALT`（随机值，用于 IP 哈希限流）；Actions 部署另需 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`。
+- 关键配置在 `worker/wrangler.toml`；注意 `ALLOWED_ORIGIN` 是浏览器 Origin，不含 `/repo` 路径。
+- 本地开发：`cd worker && npm install && npm run db:local && npm run dev`，前端用任意静态服务器指向 `docs/`。
 
 ## Drafts
 

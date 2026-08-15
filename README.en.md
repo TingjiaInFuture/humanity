@@ -67,7 +67,11 @@ If a larger community forms later, consider migrating the maintainer token to a 
 
 ## Deploy
 
-See [`DEPLOY.md`](./DEPLOY.md).
+- Frontend: GitHub Pages, `/docs` on `main`; every push publishes.
+- Worker: deployed automatically by GitHub Actions when a push to `main` touches `worker/**`; manual fallback is `npm run deploy` inside `worker/`.
+- Required secrets: `GITHUB_TOKEN` (fine-grained, this repo only, write access to Discussions / Issues / Contents / Pull requests) and `IP_HASH_SALT` (random value for hashed-IP rate limiting); the Actions deploy also needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+- Key settings live in `worker/wrangler.toml`; note that `ALLOWED_ORIGIN` is the browser origin and must not include the `/repo` path.
+- Local development: `cd worker && npm install && npm run db:local && npm run dev`, and serve `docs/` with any static server.
 
 ## Drafts
 
