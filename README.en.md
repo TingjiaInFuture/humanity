@@ -56,6 +56,10 @@ Three change types are supported:
 
 The Worker always creates an Issue first. A PR is created only when the locating text appears **exactly once** in the current target file; zero or multiple matches stop at the Issue and wait for a human.
 
+## Governance
+
+The minimal review procedure — the maintainer's bounded authority, at least **7 days** of public review for ordinary proposals, written rationale for accept/reject, early-close cases, permanent P1–P5 numbering and the `translation-required` bilingual-sync label — lives in [GOVERNANCE.md](./GOVERNANCE.md).
+
 ## Observation log
 
 Below "What's happening now", the homepage carries a continuously updated observation log. Data lives in [`docs/log.js`](./docs/log.js), committed to git by the maintainer. Rules:

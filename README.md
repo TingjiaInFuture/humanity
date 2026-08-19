@@ -56,6 +56,10 @@ Browser
 
 Worker 永远先创建 Issue。只有定位文本在当前目标文件中 **恰好出现一次** 时才创建 PR；零次或多次匹配都会停在 Issue，等待人处理。
 
+## Governance / 治理
+
+审议的最小程序——维护者权限边界、普通提案至少 **7 天**公开审议、接受/拒绝的书面理由、可提前关闭的情形、P1–P5 永久编号与 `translation-required` 双语同步标签——见 [GOVERNANCE.md](./GOVERNANCE.md)。
+
 ## 观察记录（Observation log）
 
 首页「正在发生什么」下方有一条持续更新的观察记录，数据在 [`docs/log.js`](./docs/log.js)，由维护者通过 git 提交。规则：

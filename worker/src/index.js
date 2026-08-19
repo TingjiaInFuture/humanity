@@ -156,6 +156,10 @@ async function createChange(request, env, cors) {
     const pr = await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/pulls`, {
       method: "POST", body: { title: `[Charter] ${summary}`, head: branch, base: env.GITHUB_BASE_BRANCH, body: buildPrBody({ id, issueNumber: issue.number, mode, targetPath, reason, displayName, lang }) }
     });
+    // One proposal edits one language file; the other must be synced (or the
+    // deferral recorded) before merging — see GOVERNANCE.md. The label makes
+    // the pending sync visible in the repo's PR list.
+    await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/issues/${pr.number}/labels`, { method: "POST", body: { labels: ["translation-required"] } }).catch(err => console.error("pr_label_failed", err));
     await env.DB.prepare(`UPDATE submissions SET status='synced', github_pr_url=?, github_branch=?, updated_at=? WHERE id=?`).bind(pr.html_url, branch, Date.now(), id).run();
     return json({ ok: true, id, issueUrl: issue.html_url, prUrl: pr.html_url, status: "synced" }, 201, cors);
   } catch (error) {
@@ -202,6 +206,7 @@ function buildIssueBody({ id, mode, targetPath, originalText, replacementText, r
 function buildPrBody({ id, issueNumber, mode, targetPath, reason, displayName, lang }) { return [
   `Closes #${issueNumber}`, "", `**Public submission:** \`${id}\``, `**Change type:** ${mode}`, `**Language:** ${lang}`, `**Display name:** ${displayName || "Anonymous / 匿名"}`, `**Target file:** \`${targetPath}\``, "",
   "## Rationale / 理由", "", reason, "", "---",
+  "**Bilingual sync / 双语同步:** this PR edits one language file only. The other language is not synced automatically — sync it here or record the deferral before merging (see GOVERNANCE.md).", "",
   "This branch and PR were generated automatically from an exact-text public proposal. Review is still required; the automation never merges the PR."
 ].join("\n"); }
 
