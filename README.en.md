@@ -62,7 +62,8 @@ Below "What's happening now", the homepage carries a continuously updated observ
 
 - New entries go at the **top** of the array; `date` is the **recording day**, not the event day.
 - Every entry carries at least one verifiable source link.
-- Published entries are **never edited** — a mistake gets a fresh correction entry, keeping the log as traceable as git history itself.
+- A published entry's factual claims are **never rewritten**. A data error gets a fresh correction entry, and the old entry is marked `corrected` (the page shows a "Corrected" badge; `supersededBy` points at the correction).
+- Appending a source's own stated caveats (e.g. "correlational, not causal") is allowed — it restores the source's meaning; git history keeps prior versions.
 - Public disagreement or additions go through the site's "Start a discussion" form, equally on the record.
 
 The "five signals" are the relatively stable theses (copy and evidence links in `docs/index.html` / `docs/app.js`); the observation log is the dated stream of arriving evidence. Together they form a checkable account of what's happening.
