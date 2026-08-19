@@ -83,7 +83,7 @@
       <div class="section-body narrow">
         <p class="eyebrow" data-i18n="discussionEyebrow">发起讨论</p>
         <h2 data-i18n="discussionTitle">有一个问题，想听听更多人怎么说。</h2>
-        <p class="section-copy" data-i18n="discussionCopy">写下你的问题和背景，提交后会生成一个公开页面，大家都能看到、都能回复。</p>
+        <p class="section-copy" data-i18n="discussionCopy">写下你的问题和背景——无需注册即可提交。提交后会生成一个公开的 GitHub 页面，任何人都能看到；在 GitHub 上回复需要 GitHub 账号。</p>
         <form id="discussion-form" class="public-form" novalidate>
           <label><span data-i18n="fieldTitle">标题</span><input name="title" maxlength="120" required data-i18n-placeholder="discussionTitlePlaceholder" placeholder="例如：失去经济价值的人是否仍有无条件生存权？" /></label>
           <label><span data-i18n="fieldContext">背景</span><textarea name="context" rows="5" maxlength="4000" required data-i18n-placeholder="discussionContextPlaceholder" placeholder="这个问题为什么值得讨论？你观察到了什么？"></textarea></label>
@@ -91,7 +91,8 @@
           <label><span data-i18n="fieldName">署名（可选）</span><input name="displayName" maxlength="80" data-i18n-placeholder="namePlaceholder" placeholder="昵称、名字或留空匿名" /></label>
           <label class="honeypot" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
           <label class="consent"><input type="checkbox" name="consent" required /><span data-i18n="publicConsent">我知道提交后会公开展示。</span></label>
-          <button class="button primary submit-button" type="submit" data-i18n="publishDiscussion">公开发起讨论</button>
+          <button class="button primary submit-button" type="submit" disabled data-js-submit data-i18n="publishDiscussion">公开发起讨论</button>
+          <noscript><p class="picker-note">提交功能需要 JavaScript（用于创建公开的 GitHub 页面）。当前可直接前往 GitHub 仓库参与。/ Submitting needs JavaScript (it creates a public GitHub page); meanwhile, take part directly in the GitHub repository.</p></noscript>
           <div class="form-status" id="discussion-status" role="status" aria-live="polite"></div>
         </form>
       </div>
@@ -126,7 +127,8 @@
           <label><span data-i18n="fieldName">署名（可选）</span><input name="displayName" maxlength="80" data-i18n-placeholder="namePlaceholder" placeholder="昵称、名字或留空匿名" /></label>
           <label class="honeypot" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off" /></label>
           <label class="consent"><input type="checkbox" name="consent" required /><span data-i18n="changeConsent">我知道自己写的内容会公开展示。</span></label>
-          <button class="button primary submit-button" type="submit" data-i18n="publishChange">提交修改提案</button>
+          <button class="button primary submit-button" type="submit" disabled data-js-submit data-i18n="publishChange">提交修改提案</button>
+          <noscript><p class="picker-note">提交功能需要 JavaScript（用于创建公开的 GitHub 页面）。当前可直接前往 GitHub 仓库参与。/ Submitting needs JavaScript (it creates a public GitHub page); meanwhile, take part directly in the GitHub repository.</p></noscript>
           <div class="form-status" id="change-status" role="status" aria-live="polite"></div>
         </form>
       </div>
