@@ -113,8 +113,16 @@ async function createChange(request, env, cors) {
     await env.DB.prepare(`UPDATE submissions SET github_issue_url=?, updated_at=? WHERE id=?`).bind(issue.html_url, Date.now(), id).run();
   } catch (error) { await markFailed(env, id, error); throw error; }
 
+  let branch = null;
   try {
-    const current = await getFile(env, targetPath, env.GITHUB_BASE_BRANCH);
+    // Pin the base once: the file is read from this exact commit SHA and the
+    // branch is cut from the same SHA later. Reading the file from the moving
+    // branch head first and re-querying the ref before cutting the branch let
+    // a merge to main land between the two calls, failing the contents PUT
+    // with a 409 (file blob sha vs new branch base).
+    const baseRef = await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/git/ref/heads/${encPath(env.GITHUB_BASE_BRANCH)}`);
+    const baseSha = baseRef.object.sha;
+    const current = await getFile(env, targetPath, baseSha);
     const content = decodeBase64Utf8(current.content || "");
     let updatedContent;
     if (mode === "insert" && !originalText) {
@@ -140,9 +148,8 @@ async function createChange(request, env, cors) {
       }
     }
 
-    const branch = `proposal/${id.slice(0, 8)}-${Date.now().toString(36)}`;
-    const baseRef = await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/git/ref/heads/${encPath(env.GITHUB_BASE_BRANCH)}`);
-    await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/git/refs`, { method: "POST", body: { ref: `refs/heads/${branch}`, sha: baseRef.object.sha } });
+    branch = `proposal/${id.slice(0, 8)}-${Date.now().toString(36)}`;
+    await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/git/refs`, { method: "POST", body: { ref: `refs/heads/${branch}`, sha: baseSha } });
     await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/contents/${encPath(targetPath)}`, {
       method: "PUT", body: { message: `charter: ${summary}`, content: encodeBase64Utf8(updatedContent), sha: current.sha, branch }
     });
@@ -154,6 +161,10 @@ async function createChange(request, env, cors) {
   } catch (error) {
     const message = `Issue was created, but PR automation failed: ${truncate(error?.message || "unknown error", 700)}`;
     await env.DB.prepare(`UPDATE submissions SET status='issue_only', error_message=?, updated_at=? WHERE id=?`).bind(message, Date.now(), id).run();
+    // If the branch was already cut but a later step failed, delete it so the
+    // repo doesn't accumulate orphan proposal/* branches. The Issue stays as
+    // the public record either way.
+    if (branch) await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/git/refs/heads/${encPath(branch)}`, { method: "DELETE" }).catch(err => console.error("branch_cleanup_failed", err));
     await githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/issues/${issue.number}/comments`, { method: "POST", body: { body: "The public proposal was recorded, but automatic PR creation failed. A maintainer can continue from this Issue. No automatic merge was attempted." } }).catch(err => console.error("issue_comment_failed", err));
     return json({ ok: true, id, issueUrl: issue.html_url, prUrl: null, status: "issue_only", message }, 201, cors);
   }
@@ -201,7 +212,10 @@ async function getDiscussionRepository(env) {
   if (!data?.repository) throw clientError("GitHub repository not found or inaccessible.", "repository_not_found", 409);
   return data.repository;
 }
-function chooseDiscussionCategory(categories, preferred) { if (!categories.length) return null; const n=String(preferred||"").trim().toLowerCase(); return categories.find(c=>c.name?.toLowerCase()===n||c.slug?.toLowerCase()===n)||categories[0]; }
+// Fail closed: anonymous submissions must land in the configured category only.
+// Guessing a fallback could post them into Announcements or Q&A; a category
+// config error should surface as discussion_category_missing, not be papered over.
+function chooseDiscussionCategory(categories, preferred) { const n=String(preferred||"").trim().toLowerCase(); if(!n)return null; return categories.find(c=>c.name?.toLowerCase()===n||c.slug?.toLowerCase()===n)||null; }
 async function getFile(env, path, ref) { return githubRest(env, `/repos/${enc(env.GITHUB_OWNER)}/${enc(env.GITHUB_REPO)}/contents/${encPath(path)}?ref=${encodeURIComponent(ref)}`); }
 
 async function githubGraphql(env, query, variables) {
