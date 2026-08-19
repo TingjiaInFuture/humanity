@@ -2,6 +2,12 @@ name = "humanity-charter-api"
 main = "src/index.js"
 compatibility_date = "2026-08-14"
 
+# Secrets are set with `wrangler secret put`, not here:
+#   GITHUB_TOKEN      – fine-grained PAT (Discussions/Issues/Contents/Pull requests write)
+#   IP_HASH_SALT      – random value for hashed-IP rate limiting
+#   TURNSTILE_SECRET  – optional today, recommended before public launch: when set,
+#                       every anonymous write must pass Turnstile siteverify
+
 [vars]
 GITHUB_OWNER = "TingjiaInFuture"
 GITHUB_REPO = "humanity"

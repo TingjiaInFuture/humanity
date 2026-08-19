@@ -72,7 +72,9 @@ Worker 永远先创建 Issue。只有定位文本在当前目标文件中 **恰�
 
 - GitHub token 只存在 Cloudflare Worker Secret 中，绝不发到浏览器。
 - D1 不保存原始 IP。
-- 限流只保存 `SHA-256(secret salt + IP)` 的窗口计数。
+- 限流只保存 `SHA-256(secret salt + IP)` 的窗口计数；计数用单条 UPSERT（`RETURNING count`）原子递增，不存在「先读后写」的并发竞态。
+- 匿名公开写入有人机验证：Worker 配置 `TURNSTILE_SECRET` 后，每条提交必须携带 Turnstile token 并经服务端 Siteverify 校验（token 单次有效）。CORS 不承担防护职责——Origin 在浏览器之外可以随意伪造。
+- 写入 GitHub 的正文会中和 `@` 提及（`@` 后插入零宽空格），防止匿名投稿借同步账号 ping 任何人；进入代码块的原文与替换文本保持逐字不变。
 - 表单有简单蜜罐字段。
 - CORS 限定到配置的 GitHub Pages Origin，并额外允许 localhost 开发。
 - Worker 永不自动 merge PR。
@@ -85,6 +87,7 @@ Worker 永远先创建 Issue。只有定位文本在当前目标文件中 **恰�
 - 前端：GitHub Pages，`main` 分支 `/docs` 目录，push 即发布。
 - Worker：push 到 `main` 且改动 `worker/**` 时由 GitHub Actions 自动部署；也可在 `worker/` 下手动 `npm run deploy`。
 - 所需 Secret：`GITHUB_TOKEN`（fine-grained，仅本仓库，Discussions / Issues / Contents / Pull requests 写权限）、`IP_HASH_SALT`（随机值，用于 IP 哈希限流）；Actions 部署另需 `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`。
+- 人机验证（公开上线前建议开启）：Cloudflare 控制台创建 Turnstile 组件（域名填 Pages 域名）；sitekey 填入 `docs/config.js` 的 `turnstileSiteKey`，secret 用 `cd worker && npx wrangler secret put TURNSTILE_SECRET` 配置——secret 一旦存在，Worker 即强制校验。
 - 关键配置在 `worker/wrangler.toml`；注意 `ALLOWED_ORIGIN` 是浏览器 Origin，不含 `/repo` 路径。
 - 本地开发：`cd worker && npm install && npm run db:local && npm run dev`，前端用任意静态服务器指向 `docs/`。
 

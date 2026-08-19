@@ -72,7 +72,9 @@ The "five signals" are the relatively stable theses (copy and evidence links in 
 
 - The GitHub token lives only in a Cloudflare Worker Secret and is never sent to the browser.
 - D1 stores no raw IP addresses.
-- Rate limiting keeps only windowed counts of `SHA-256(secret salt + IP)`.
+- Rate limiting keeps only windowed counts of `SHA-256(secret salt + IP)`; the count is incremented atomically by a single UPSERT (`RETURNING count`), with no read-then-write race.
+- Anonymous public writes carry a human-verification challenge: once `TURNSTILE_SECRET` is configured, every submission must include a Turnstile token verified server-side via Siteverify (tokens are single-use). CORS does not serve as protection — Origin is trivially forged outside a browser.
+- Text written to GitHub gets its `@` mentions neutralized (a zero-width space after the `@`), so anonymous submissions cannot ping people through the sync account; original and replacement text inside code fences stay verbatim.
 - Forms include a simple honeypot field.
 - CORS is restricted to the configured GitHub Pages origin, plus localhost for development.
 - The Worker never merges a PR automatically.
@@ -85,6 +87,7 @@ If a larger community forms later, consider migrating the maintainer token to a 
 - Frontend: GitHub Pages, `/docs` on `main`; every push publishes.
 - Worker: deployed automatically by GitHub Actions when a push to `main` touches `worker/**`; manual fallback is `npm run deploy` inside `worker/`.
 - Required secrets: `GITHUB_TOKEN` (fine-grained, this repo only, write access to Discussions / Issues / Contents / Pull requests) and `IP_HASH_SALT` (random value for hashed-IP rate limiting); the Actions deploy also needs `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+- Human verification (recommended before public launch): create a Turnstile widget in the Cloudflare dashboard (hostname = the Pages domain); put the sitekey into `turnstileSiteKey` in `docs/config.js` and the secret into the Worker with `cd worker && npx wrangler secret put TURNSTILE_SECRET` — enforcement begins as soon as the secret exists.
 - Key settings live in `worker/wrangler.toml`; note that `ALLOWED_ORIGIN` is the browser origin and must not include the `/repo` path.
 - Local development: `cd worker && npm install && npm run db:local && npm run dev`, and serve `docs/` with any static server.
 

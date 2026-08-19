@@ -53,10 +53,11 @@ async function activity(url, env, cors) {
 async function createDiscussion(request, env, cors) {
   assertConfigured(env);
   const data = await readJson(request); rejectHoneypot(data);
-  const title = requiredString(data.title, "title", 5, 120);
-  const context = requiredString(data.context, "context", 10, 4000);
-  const question = requiredString(data.question, "question", 5, 2500);
-  const displayName = optionalString(data.displayName, 80);
+  await verifyTurnstile(request, env, data.turnstileToken);
+  const title = neutralizeMentions(requiredString(data.title, "title", 5, 120));
+  const context = neutralizeMentions(requiredString(data.context, "context", 10, 4000));
+  const question = neutralizeMentions(requiredString(data.question, "question", 5, 2500));
+  const displayName = neutralizeMentions(optionalString(data.displayName, 80));
   const lang = normalizeLang(data.lang); requireConsent(data.consent);
   const id = crypto.randomUUID(), now = Date.now();
   await insertSubmission(env, { id, kind: "discussion", lang, title, payload: { title, context, question, displayName, lang }, status: "pending", now });
@@ -77,7 +78,8 @@ async function createDiscussion(request, env, cors) {
 async function createChange(request, env, cors) {
   assertConfigured(env);
   const data = await readJson(request); rejectHoneypot(data);
-  const summary = requiredString(data.summary, "summary", 5, 120);
+  await verifyTurnstile(request, env, data.turnstileToken);
+  const summary = neutralizeMentions(requiredString(data.summary, "summary", 5, 120));
   // mode: "replace" edits an exact passage, "insert" adds new content after an anchor
   // (or at the end of the file when no anchor is given), "delete" removes an exact passage.
   const mode = ["replace", "insert", "delete"].includes(data.mode) ? data.mode : "replace";
@@ -94,8 +96,8 @@ async function createChange(request, env, cors) {
     replacementText = requiredString(data.replacementText, "replacementText", 1, 8000);
     if (originalText === replacementText) throw clientError("The replacement text is identical to the current text.", "no_change", 400);
   }
-  const reason = requiredString(data.reason, "reason", 5, 4000);
-  const displayName = optionalString(data.displayName, 80);
+  const reason = neutralizeMentions(requiredString(data.reason, "reason", 5, 4000));
+  const displayName = neutralizeMentions(optionalString(data.displayName, 80));
   const lang = normalizeLang(data.lang), fileKey = data.file === "en" ? "en" : "zh";
   const targetPath = fileKey === "en" ? env.CHARTER_EN_PATH : env.CHARTER_ZH_PATH;
   requireConsent(data.consent);
@@ -218,15 +220,56 @@ function githubHeaders(env){return {accept:"application/vnd.github+json",authori
 async function insertSubmission(env,{id,kind,lang,title,payload,status,now}){await env.DB.prepare(`INSERT INTO submissions(id,kind,lang,title,payload_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)`).bind(id,kind,lang,title,JSON.stringify(payload),status,now,now).run()}
 async function markFailed(env,id,error){try{await env.DB.prepare(`UPDATE submissions SET status='failed',error_message=?,updated_at=? WHERE id=?`).bind(truncate(error?.message||"unknown error",700),Date.now(),id).run()}catch(e){console.error("mark_failed_db_error",e)}}
 
-async function enforceRateLimit(request,env){
-  if(!env.IP_HASH_SALT)throw configError("IP_HASH_SALT secret is missing.");
-  const ip=request.headers.get("cf-connecting-ip")||request.headers.get("x-forwarded-for")||"unknown";
-  const clientHash=await sha256Hex(`${env.IP_HASH_SALT}:${ip}`),windowSeconds=clampInt(env.RATE_LIMIT_WINDOW_SECONDS,60,86400,3600),max=clampInt(env.RATE_LIMIT_MAX,1,100,6),now=Math.floor(Date.now()/1000),windowStart=Math.floor(now/windowSeconds)*windowSeconds;
-  const row=await env.DB.prepare(`SELECT count FROM rate_limits WHERE client_hash=? AND window_start=?`).bind(clientHash,windowStart).first();
-  if(row&&Number(row.count)>=max)throw clientError("Too many submissions from this connection. Please try again later.","rate_limited",429);
-  if(row)await env.DB.prepare(`UPDATE rate_limits SET count=count+1 WHERE client_hash=? AND window_start=?`).bind(clientHash,windowStart).run();else await env.DB.prepare(`INSERT INTO rate_limits(client_hash,window_start,count) VALUES(?,?,1)`).bind(clientHash,windowStart).run();
-  if(Math.random()<.02){const cutoff=windowStart-windowSeconds*48;env.DB.prepare(`DELETE FROM rate_limits WHERE window_start<?`).bind(cutoff).run().catch(e=>console.error("rate_limit_cleanup_failed",e))}
+async function enforceRateLimit(request, env) {
+  if (!env.IP_HASH_SALT) throw configError("IP_HASH_SALT secret is missing.");
+  const ip = request.headers.get("cf-connecting-ip") || request.headers.get("x-forwarded-for") || "unknown";
+  const clientHash = await sha256Hex(`${env.IP_HASH_SALT}:${ip}`);
+  const windowSeconds = clampInt(env.RATE_LIMIT_WINDOW_SECONDS, 60, 86400, 3600);
+  const max = clampInt(env.RATE_LIMIT_MAX, 1, 100, 6);
+  const now = Math.floor(Date.now() / 1000);
+  const windowStart = Math.floor(now / windowSeconds) * windowSeconds;
+  // A single atomic UPSERT replaces the old SELECT-then-UPDATE/INSERT pair:
+  // that sequence let concurrent requests read the same count and pass the
+  // limit together (and race two INSERTs on the same primary key). The
+  // RETURNING count is what decides admission.
+  const row = await env.DB.prepare(`
+    INSERT INTO rate_limits (client_hash, window_start, count)
+    VALUES (?, ?, 1)
+    ON CONFLICT(client_hash, window_start) DO UPDATE SET count = count + 1
+    RETURNING count
+  `).bind(clientHash, windowStart).first();
+  if (Number(row?.count || 1) > max) throw clientError("Too many submissions from this connection. Please try again later.", "rate_limited", 429);
+  if (Math.random() < 0.02) {
+    try { await env.DB.prepare(`DELETE FROM rate_limits WHERE window_start < ?`).bind(windowStart - windowSeconds * 48).run(); }
+    catch (e) { console.error("rate_limit_cleanup_failed", e); }
+  }
 }
+
+// Turnstile is the minimum anti-abuse layer for anonymous public writes:
+// CORS cannot protect this API, since Origin is trivially forged outside a
+// browser. Tokens are verified server-side via Siteverify and are single-use.
+// Enforcement activates as soon as TURNSTILE_SECRET is configured (see README);
+// absent the secret the check is skipped so local development still works.
+async function verifyTurnstile(request, env, token) {
+  const secret = env.TURNSTILE_SECRET;
+  if (!secret) return;
+  const response = String(token || "").trim();
+  if (!response) throw clientError("Please complete the human verification.", "captcha_required", 400);
+  const form = new URLSearchParams({ secret, response });
+  const ip = request.headers.get("cf-connecting-ip");
+  if (ip) form.set("remoteip", ip);
+  const res = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body: form });
+  let verdict = null; try { verdict = await res.json(); } catch {}
+  if (!res.ok || !verdict?.success) throw clientError("Human verification failed. Please reload and try again.", "captcha_failed", 403);
+}
+
+// Anonymous submissions land on GitHub under the sync account; an "@user" in
+// the text would ping people as if the project itself had mentioned them.
+// A zero-width space after the "@" keeps the text readable while breaking the
+// mention. Only prose fields are neutralized — originalText/replacementText
+// stay verbatim (they must exact-match the charter, and fenced code blocks
+// do not trigger notifications anyway).
+function neutralizeMentions(text) { return String(text).replace(/@/g, "@\u200B"); }
 async function sha256Hex(v){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return [...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,"0")).join("")}
 function countExact(h,n){if(!n)return 0;let c=0,p=0;while(true){const i=h.indexOf(n,p);if(i===-1)break;c++;p=i+n.length}return c}
 function encodeBase64Utf8(text){const bytes=new TextEncoder().encode(text);let binary="";for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));return btoa(binary)}
